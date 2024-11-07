@@ -1,0 +1,187 @@
+package threads;
+
+import java.awt.geom.*;
+import javax.swing.*;
+import java.util.concurrent.CopyOnWriteArrayList; // MOD: Importación para evitar ConcurrentModificationException
+import java.awt.*;
+import java.awt.event.*;
+
+public class UsoThreads {
+    public static void main(String[] args) {
+        JFrame marco = new MarcoRebote();
+        marco.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        marco.setVisible(true);
+    }
+}
+
+class PelotaHilos implements Runnable {
+    private Pelota pelota;
+    private Component componente;
+    private boolean suspendido = false; // MOD: Variable para controlar el estado de suspensión
+
+    public PelotaHilos(Pelota pelota, Component unComponente) {
+        this.pelota = pelota;
+        this.componente = unComponente;
+    }
+
+    public void run() {
+        while (!Thread.currentThread().isInterrupted()) {
+            synchronized (this) {
+                // MOD: Espera mientras el hilo esté suspendido
+                while (suspendido) {
+                    try {
+                        wait(); // MOD: Suspende el hilo
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+
+            pelota.mueve_pelota(componente.getBounds()); // Mueve la pelota
+            componente.repaint(); // Redibuja la pantalla
+
+            try {
+                Thread.sleep(4); // Controla la velocidad de animación
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); // Interrumpe el hilo si es necesario
+            }
+        }
+    }
+
+    // MOD: Método para suspender la animación
+    public void suspender() {
+        suspendido = true; // MOD: Cambia el estado a suspendido
+    }
+
+    // MOD: Método para reanudar la animación
+    public synchronized void reanudar() {
+        suspendido = false; // MOD: Cambia el estado para reanudar
+        notify(); // MOD: Despierta el hilo
+    }
+}
+
+class Pelota {
+    private static final int TAMX = 15;
+    private static final int TAMY = 15;
+    private double x = 0;
+    private double y = 0;
+    private double dx = 1;
+    private double dy = 1;
+
+    public void mueve_pelota(Rectangle2D limites) {
+        x += dx;
+        y += dy;
+
+        if (x < limites.getMinX()) {
+            x = limites.getMinX();
+            dx = -dx;
+        }
+
+        if (x + TAMX >= limites.getMaxX()) {
+            x = limites.getMaxX() - TAMX;
+            dx = -dx;
+        }
+
+        if (y < limites.getMinY()) {
+            y = limites.getMinY();
+            dy = -dy;
+        }
+
+        if (y + TAMY >= limites.getMaxY()) {
+            y = limites.getMaxY() - TAMY;
+            dy = -dy;
+        }
+    }
+
+    public Ellipse2D getShape() {
+        return new Ellipse2D.Double(x, y, TAMX, TAMY);
+    }
+}
+
+class LaminaPelota extends JPanel {
+    private CopyOnWriteArrayList<Pelota> pelotas = new CopyOnWriteArrayList<>(); // MOD: Lista segura para evitar ConcurrentModificationException
+
+    public void add(Pelota b) {
+        pelotas.add(b); // Añadir pelota a la lista segura
+    }
+
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g;
+        for (Pelota b : pelotas) {
+            g2.fill(b.getShape()); // Dibujar cada pelota en la lista
+        }
+    }
+}
+
+class MarcoRebote extends JFrame {
+    private LaminaPelota lamina;
+    private Thread t; // MOD: Variable para controlar el hilo en ejecución
+    private PelotaHilos tarea;
+
+    public MarcoRebote() {
+        setBounds(600, 300, 400, 350);
+        setTitle("Rebotes");
+        lamina = new LaminaPelota();
+        add(lamina, BorderLayout.CENTER);
+
+        JPanel laminaBotones = new JPanel();
+
+        ponerBoton(laminaBotones, "Dale!", new ActionListener() {
+            public void actionPerformed(ActionEvent evento) {
+                comienza_el_juego(); // MOD: Inicia el juego solo si no hay otro hilo en ejecución
+            }
+        });
+
+        ponerBoton(laminaBotones, "Suspender", new ActionListener() {
+            public void actionPerformed(ActionEvent evento) {
+                suspender(); // MOD: Suspende el hilo en ejecución
+            }
+        });
+
+        ponerBoton(laminaBotones, "Reanudar", new ActionListener() {
+            public void actionPerformed(ActionEvent evento) {
+                reanudar(); // MOD: Reanuda el hilo suspendido
+            }
+        });
+
+        ponerBoton(laminaBotones, "Salir", new ActionListener() {
+            public void actionPerformed(ActionEvent evento) {
+                System.exit(0); // Cierra la aplicación
+            }
+        });
+
+        add(laminaBotones, BorderLayout.SOUTH);
+    }
+
+    public void ponerBoton(Container c, String titulo, ActionListener oyente) {
+        JButton boton = new JButton(titulo);
+        c.add(boton);
+        boton.addActionListener(oyente);
+    }
+
+    public void comienza_el_juego() {
+        if (t == null || !t.isAlive()) { // MOD: Verifica si no hay otro hilo en ejecución
+            Pelota pelota = new Pelota();
+            lamina.add(pelota);
+
+            tarea = new PelotaHilos(pelota, lamina); // MOD: Crea la tarea para el hilo
+            t = new Thread(tarea); // MOD: Asigna la tarea al hilo
+            t.start(); // MOD: Inicia el hilo
+        } else {
+            System.out.println("Ya hay un hilo en ejecución."); // MOD: Mensaje si ya existe un hilo activo
+        }
+    }
+
+    public void suspender() {
+        if (t != null && t.isAlive()) {
+            tarea.suspender(); // MOD: Llama a suspender en la tarea del hilo
+        }
+    }
+
+    public void reanudar() {
+        if (t != null && t.isAlive()) {
+            tarea.reanudar(); // MOD: Llama a reanudar en la tarea del hilo
+        }
+    }
+}
