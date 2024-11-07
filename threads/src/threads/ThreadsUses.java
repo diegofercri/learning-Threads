@@ -7,239 +7,184 @@ import java.awt.*;
 import java.awt.event.*;
 
 public class ThreadsUses {
-/*
- * El siguiente código recoge las clases y métodos desarrollados en los vídeos
- * 168-169 y primera mitad del 170, antes de implementar un botón para cada hilo
- * lanzado en el contexto de la detención de hilos mediante el método interrupt(). 
- */
-
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-
-		JFrame marco = new MarcoRebote();
-		marco.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		marco.setVisible(true);
-
-	}
+    public static void main(String[] args) {
+        JFrame frame = new BounceFrame();
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setVisible(true);
+    }
 }
 
-////////////*****************************************************************
-//Clase para creación de los hilos
-class PelotaHilos implements Runnable {
-
-	public PelotaHilos(Pelota pelota, Component unComponente) {
-		this.pelota = pelota;
-		this.componente = unComponente;
-	}
-	
-	private Pelota pelota;  //aquí se almacenará la pelota
-	private Component componente; //aquí se almacenará la lámina
-	
-	public void run() {
-		
-		System.out.println("Estado de detención del hilo al comenzar: " + Thread.currentThread().isInterrupted());
-	//	for (int i = 0; i <= 1000; i++) {
-	//	while (!Thread.interrupted()) {
-		while (!Thread.currentThread().isInterrupted()) {
-			
-			pelota.mueve_pelota(componente.getBounds());
-			componente.paint(componente.getGraphics());
-			
-			
-			try {
-				Thread.sleep(4);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				//e.printStackTrace();
-				Thread.currentThread().interrupt();
-			}
-			
-		}
-		
-		System.out.println("Estado de detención del hilo al detener: " + Thread.currentThread().isInterrupted());
-		
-	}
-	
-	
-	
-	
-
-	
+// This class implements Runnable to allow moving a Ball on a separate thread
+class BallThread implements Runnable {
+    
+    public BallThread(Ball ball, Component component) {
+        this.ball = ball;
+        this.component = component;
+    }
+    
+    private Ball ball;
+    private Component component;
+    
+    // The run method defines the behavior of the thread
+    public void run() {
+        
+        System.out.println("Thread interruption status at start: " + Thread.currentThread().isInterrupted());
+        while (!Thread.currentThread().isInterrupted()) {
+            
+            // Move the ball and repaint the component
+            ball.moveBall(component.getBounds());
+            component.paint(component.getGraphics());
+            
+            try {
+                Thread.sleep(4); // Pause to create the animation effect
+            } catch (InterruptedException e) {
+                // Restore the interruption status
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        System.out.println("Thread interruption status at end: " + Thread.currentThread().isInterrupted());
+        
+    }
 }
 
+// Class Ball - Handles the movement of the ball and its shape
+class Ball {
+    public void moveBall(Rectangle2D bounds) {
+        
+        // Update position based on direction
+        x += dx;
+        y += dy;
 
-////////////*****************************************************************
+        // Handle collisions with the bounds (bounce effect)
+        if (x < bounds.getMinX()) {
+            x = bounds.getMinX();
+            dx = -dx;
+        }
 
+        if (x + BALL_WIDTH >= bounds.getMaxX()) {
+            x = bounds.getMaxX() - BALL_WIDTH;
+            dx = -dx;
+        }
 
-//////////////////////////////////////////////////////////////////////////////
+        if (y < bounds.getMinY()) {
+            y = bounds.getMinY();
+            dy = -dy;
+        }
 
-// Movimiento de la pelota
-class Pelota {
-	// Mueve la pelota invirtiendo posición si choca con límites
-	public void mueve_pelota(Rectangle2D limites) {
+        if (y + BALL_HEIGHT >= bounds.getMaxY()) {
+            y = bounds.getMaxY() - BALL_HEIGHT;
+            dy = -dy;
+        }
 
-		x += dx;
-		y += dy;
+    }
 
-		if (x < limites.getMinX()) {
-			x = limites.getMinX();
-			dx = -dx;
+    // Returns the shape of the ball as an Ellipse2D
+    public Ellipse2D getShape() {
+        return new Ellipse2D.Double(x, y, BALL_WIDTH, BALL_HEIGHT);
+    }
 
-		}
-
-		if (x + TAMX >= limites.getMaxX()) {
-			x = limites.getMaxX() - TAMX;
-			dx = -dx;
-
-		}
-
-		if (y < limites.getMinY()) {
-			y = limites.getMinY();
-			dy = -dy;
-
-		}
-
-		if (y + TAMY >= limites.getMaxY()) {
-			y = limites.getMaxY() - TAMY;
-			dy = -dy;
-
-		}
-
-	}
-
-	// Forma de la pelota en su posición inicial
-	public Ellipse2D getShape() {
-		return new Ellipse2D.Double(x, y, TAMX, TAMY);
-	}
-
-	private static final int TAMX = 15;
-	private static final int TAMY = 15;
-	private double x = 0;
-	private double y = 0;
-	private double dx = 1;
-	private double dy = 1;
+    private static final int BALL_WIDTH = 15;
+    private static final int BALL_HEIGHT = 15;
+    private double x = 0;
+    private double y = 0;
+    private double dx = 1;
+    private double dy = 1;
 
 }
 
+// BallPanel class extends JPanel and is responsible for rendering the balls
+class BallPanel extends JPanel {
 
-//////////////////////////////////////////////////////////////////////////////
+    public void add(Ball b) {
+        balls.add(b);
+    }
 
-// Lámina que dibuja las pelotas
-class LaminaPelota extends JPanel {
+    // Paints all balls in the panel
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g;
+        for (Ball b : balls) {
+            g2.fill(b.getShape());
+        }
+    }
 
-	// Añadimos pelota a la lámina
-	public void add(Pelota b) {
-		pelotas.add(b);
-	}
-
-	public void paintComponent(Graphics g) {
-		super.paintComponent(g);
-		Graphics2D g2 = (Graphics2D) g;
-
-		for (Pelota b : pelotas) {
-			g2.fill(b.getShape());
-		}
-
-	}
-
-	private ArrayList<Pelota> pelotas = new ArrayList<Pelota>();
+    private ArrayList<Ball> balls = new ArrayList<>();
 }
 
+// BounceFrame class - The main window that sets up the GUI and thread controls
+class BounceFrame extends JFrame {
 
-//////////////////////////////////////////////////////////////////////////////
+    public BounceFrame() {
+        setBounds(600, 300, 400, 350);
+        setTitle("Bouncing Balls");
+        
+        // Panel for rendering the balls
+        ballPanel = new BallPanel();
+        add(ballPanel, BorderLayout.CENTER);
+        
+        // Panel for buttons at the bottom
+        JPanel buttonPanel = new JPanel();
+        
+        addButton(buttonPanel, "Start", new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                startGame();
+            }
+        });
 
-// Marco con lámina y botones
-class MarcoRebote extends JFrame {
+        addButton(buttonPanel, "Exit", new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                System.exit(0);
+            }
+        });
 
-	public MarcoRebote() {
+        addButton(buttonPanel, "Stop", new ActionListener() {
+            public void actionPerformed(ActionEvent event) {
+                stopGame();
+            }
+        });
 
-		setBounds(600, 300, 400, 350);
+        add(buttonPanel, BorderLayout.SOUTH);
+    }
 
-		setTitle("Rebotes");
+    // Method to add a button to a container and set its action listener
+    public void addButton(Container container, String title, ActionListener listener) {
+        JButton button = new JButton(title);
+        container.add(button);
+        button.addActionListener(listener);
+    }
 
-		lamina = new LaminaPelota();
+    Thread thread;
 
-		add(lamina, BorderLayout.CENTER);
+    // Starts the game by adding a ball and starting a thread to animate it
+    public void startGame() {
+        
+        Ball ball = new Ball();
+        ballPanel.add(ball);
 
-		JPanel laminaBotones = new JPanel();
+        /* Original loop in single-threaded version
+        for (int i = 0; i <= 1000; i++) {
+            ball.moveBall(ballPanel.getBounds());
+            ballPanel.paint(ballPanel.getGraphics());
+            try {
+                Thread.sleep(4);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        */
+        
+        // Use a new thread to move the ball
+        Runnable r = new BallThread(ball, ballPanel);
+        thread = new Thread(r);
+        thread.start();
+    }
 
-		ponerBoton(laminaBotones, "Dale!", new ActionListener() {
+    // Stops the game by interrupting the ball thread
+    public void stopGame(){
+        thread.interrupt();
+    }
 
-			public void actionPerformed(ActionEvent evento) {
-				comienza_el_juego();
-			}
-
-		});
-
-		ponerBoton(laminaBotones, "Salir", new ActionListener() {
-
-			public void actionPerformed(ActionEvent evento) {
-				System.exit(0);
-			}
-		});
-		
-		//En vídeo 169 se añade la función de detener a que corresponde
-		//este botón y el método detener() y demás asociado.
-		ponerBoton(laminaBotones, "Detener", new ActionListener() {
-
-			public void actionPerformed(ActionEvent evento) {
-				detener();
-			}
-		});
-
-		add(laminaBotones, BorderLayout.SOUTH);
-
-	}
-
-	// Se ponen botones
-	public void ponerBoton(Container c, String titulo, ActionListener oyente) {
-
-		JButton boton = new JButton(titulo);
-		c.add(boton);
-		boton.addActionListener(oyente);
-	}
-
-	
-	
-	// Añade pelota y la mueve 1000 veces
-	
-	Thread t;  //variable común a comienza_el_juego() y detener()
-	public void comienza_el_juego() {
-
-		Pelota pelota = new Pelota();
-
-		lamina.add(pelota);
-
-		/* bucle original en la versión monotarea
-		for (int i = 0; i <= 1000; i++) {
-
-			pelota.mueve_pelota(lamina.getBounds());
-			lamina.paint(lamina.getGraphics());
-			
-			try {
-				Thread.sleep(4);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-*/
-		
-		//Código para añadir instancias de hilos multitarea
-		Runnable r = new PelotaHilos(pelota, lamina);
-		//Thread t = new Thread(r);
-		t = new Thread(r);
-		t.start();
-		
-
-	}
-
-	
-	public void detener(){
-		
-		// t.stop(); //obsoleto, no utilizar
-		t.interrupt();
-	}
-
-	private LaminaPelota lamina;
+    private BallPanel ballPanel;
+    
 }
