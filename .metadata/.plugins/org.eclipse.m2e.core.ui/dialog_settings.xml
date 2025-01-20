@@ -2,6 +2,9 @@
 <section name="Workbench">
 	<section name="wizardPage">
 		<list key="groupId">
+			<item value="examenev2redes"/>
+			<item value="examenev1hilos"/>
+			<item value="networks"/>
 			<item value="threads"/>
 			<item value="processes"/>
 			<item value="examenev1psp"/>
@@ -9,6 +12,9 @@
 		<list key="name">
 		</list>
 		<list key="artifactId">
+			<item value="examenev2redes"/>
+			<item value="examenev1hilos"/>
+			<item value="networks"/>
 			<item value="threads"/>
 			<item value="processes"/>
 			<item value="examenev1psp"/>
